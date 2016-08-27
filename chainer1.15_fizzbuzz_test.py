@@ -18,13 +18,17 @@ class MLP(Chain):
         super(MLP, self).__init__(
             l1 = L.Linear(n_in, n_unit),
             l2 = L.Linear(n_unit, n_unit),
-            l3 = L.Linear(n_unit, n_out),
+            l3 = L.Linear(n_unit, n_unit),
+            l4 = L.Linear(n_unit, n_unit),
+            l5 = L.Linear(n_unit, n_out),
             )
 
     def __call__(self, x):
         h1 = F.relu(self.l1(x))
         h2 = F.relu(self.l2(h1))
-        return self.l3(h2)
+        h3 = F.relu(self.l3(h1))
+        h4 = F.relu(self.l4(h1))
+        return self.l5(h2)
 
 def to_input_binary(n, binary_size):
     fmt = '{0:%sb}' % (binary_size)
@@ -108,16 +112,19 @@ def main():
         i = i + 1
 
     # how come this isnt work?
-    nptrain_data = nptrain_data.astype(np.float32)/255
+    #nptrain_data = nptrain_data.astype(np.float32)/255
+    nptrain_data = nptrain_data.astype(np.float32)
     nptrain_label_data = nptrain_label_data.astype(np.int32)
-    nptest_data = nptest_data.astype(np.float32)/255
+    #nptest_data = nptest_data.astype(np.float32)/255
+    nptest_data = nptest_data.astype(np.float32)
     nptest_label_data = nptest_label_data.astype(np.int32)
     train = tuple_dataset.TupleDataset(nptrain_data, nptrain_label_data)
     test  = tuple_dataset.TupleDataset(nptest_data, nptest_label_data)
 
     print(train[0])
     # this is original
-#    train2, test2 = chainer.datasets.get_mnist()
+    #train2, test2 = chainer.datasets.get_mnist()
+    
 
     train_iter = chainer.iterators.SerialIterator(train, args.batchsize)
     test_iter  = chainer.iterators.SerialIterator(test,  args.batchsize,
