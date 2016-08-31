@@ -6,6 +6,7 @@ import argparse
 import chainer
 import chainer.functions as F
 import chainer.links as L
+import chainer.serializers
 from chainer.datasets import tuple_dataset
 from chainer import Chain, Variable, optimizers
 from chainer import training
@@ -18,17 +19,31 @@ class MLP(Chain):
         super(MLP, self).__init__(
             l1 = L.Linear(n_in, n_unit),
             l2 = L.Linear(n_unit, n_unit),
-            l3 = L.Linear(n_unit, n_unit),
-            l4 = L.Linear(n_unit, n_unit),
-            l5 = L.Linear(n_unit, n_out),
+            l3 = L.Linear(n_unit, n_out),
             )
 
     def __call__(self, x):
         h1 = F.relu(self.l1(x))
         h2 = F.relu(self.l2(h1))
-        h3 = F.relu(self.l3(h1))
-        h4 = F.relu(self.l4(h1))
-        return self.l5(h2)
+        return self.l3(h2)
+
+    def predict(self, x):
+        h1 = F.relu(self.l1(x))
+        h2 = F.relu(self.l2(h1))
+        return self.l3(h2)
+    
+
+def predict(model, num, binary_size):
+    print(str(num) + ":" + str(to_output_binary(num)))
+    test_data = to_input_binary( num, binary_size )
+    print(test_data)
+    x = Variable(np.asarray([to_input_binary(num,binary_size)], np.float32))
+    #t = Variable(np.asarray([to_output_binary(num)], np.int32))
+    x.data[0] = x.data[0]/255
+    print(x.data[0])
+    y = model.predictor(x)
+    print(y.data)
+    #return to_str(num, y.data[0])
 
 def to_input_binary(n, binary_size):
     fmt = '{0:%sb}' % (binary_size)
@@ -73,6 +88,11 @@ def main():
                        help='Resume the training from snapshot')
     parse.add_argument('--unit','-u',type=int, default=1000,
                        help='Number of units')
+    parse.add_argument('--model','-m', default='',
+                       help='training model path to load')
+    parse.add_argument('--optimizer','-p',default='',
+                       help='training optimizer path to load')
+    parse.add_argument('--predict','-d',type=int, default=-1)
     args = parse.parse_args()
     
     print('GPU: {}'.format(args.gpu))
@@ -112,55 +132,64 @@ def main():
         i = i + 1
 
     # how come this isnt work?
-    #nptrain_data = nptrain_data.astype(np.float32)/255
-    nptrain_data = nptrain_data.astype(np.float32)
+    nptrain_data = nptrain_data.astype(np.float32)/255
+    #nptrain_data = nptrain_data.astype(np.float32)
     nptrain_label_data = nptrain_label_data.astype(np.int32)
-    #nptest_data = nptest_data.astype(np.float32)/255
-    nptest_data = nptest_data.astype(np.float32)
+    nptest_data = nptest_data.astype(np.float32)/255
+    #nptest_data = nptest_data.astype(np.float32)
     nptest_label_data = nptest_label_data.astype(np.int32)
     train = tuple_dataset.TupleDataset(nptrain_data, nptrain_label_data)
     test  = tuple_dataset.TupleDataset(nptest_data, nptest_label_data)
 
-    print(train[0])
+    #print(train[0])
     # this is original
     #train2, test2 = chainer.datasets.get_mnist()
     
-
+    
     train_iter = chainer.iterators.SerialIterator(train, args.batchsize)
     test_iter  = chainer.iterators.SerialIterator(test,  args.batchsize,
                                           repeat=False, shuffle=False)
 
-    updater = training.StandardUpdater(train_iter, optimizer)
-    trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=args.out)
+    
 
-    trainer.extend(extensions.Evaluator(test_iter, model, device=args.gpu))
+    if args.predict < 0:
+        if args.model == '':
+            updater = training.StandardUpdater(train_iter, optimizer)
+            trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=args.out)
+            trainer.extend(extensions.Evaluator(test_iter, model, device=args.gpu))
+            trainer.extend(extensions.dump_graph('main/loss'))
+            trainer.extend(extensions.snapshot())
+            trainer.extend(extensions.LogReport())
+            trainer.extend(extensions.PrintReport(
+                ['epoch', 'main/loss', 'validation/main/loss',
+                 'main/accuracy', 'validation/main/accuracy']))
+            trainer.extend(extensions.ProgressBar())
+            
+        else:
+            chainer.serializers.load_npz(args.model, model)
+            chainer.serializers.load_npz(args.optimizer, optimizer)
+            
+            updater = training.StandardUpdater(train_iter, optimizer)
+            trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=args.out)
+            trainer.extend(extensions.Evaluator(test_iter, model, device=args.gpu))
+            trainer.extend(extensions.LogReport())
+            trainer.extend(extensions.PrintReport(
+                ['epoch', 'main/loss', 'validation/main/loss',
+                 'main/accuracy', 'validation/main/accuracy']))
+            
+        trainer.run()
+    else:
+        chainer.serializers.load_npz(args.model, model)
+        chainer.serializers.load_npz(args.optimizer, optimizer)
+        for i in range(1, args.maxnum):
+            pred = predict(model, i, binary_size)
+            print(pred)
+            print('')
 
-    trainer.extend(extensions.dump_graph('main/loss'))
-    
-    trainer.extend(extensions.snapshot())
-    
-    trainer.extend(extensions.LogReport())
-    
-    trainer.extend(extensions.PrintReport(
-        ['epoch', 'main/loss', 'validation/main/loss',
-         'main/accuracy', 'validation/main/accuracy']))
-    
-    trainer.extend(extensions.ProgressBar())
-
-    trainer.run()
+    chainer.serializers.save_npz('my.model', model)
+    chainer.serializers.save_npz('my.state', optimizer)
+            
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
-
-
-
-
-
-
-
 
