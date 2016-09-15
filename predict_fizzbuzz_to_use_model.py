@@ -39,8 +39,18 @@ def to_input_binary(n, binary_size):
     res = [0 if x== ' ' else float(x) for x in res]
     return res
 
+def to_output_binary(n):
+    if n % 15 == 0:
+        return 0
+    elif n % 5 == 0:
+        return 1
+    elif n % 3 == 0:
+        return 2
+    else:
+        return 3
+
 def predict(model, num, binary_size):
-    print(num)
+    print(num, to_output_binary(num))
     test_data = to_input_binary( num, binary_size )
     print(test_data)
     x = Variable(np.asarray([to_input_binary(num, binary_size)], np.float32))
@@ -49,6 +59,16 @@ def predict(model, num, binary_size):
     y = model.predictor(x)
     print(y.data[0])
     #return to_str(num, y.data[0])
+
+def to_str(i, pred):
+    if pred == 0:
+        return 'FizzBuzz'
+    elif pred == 1:
+        return 'Buzz'
+    elif pred == 2:
+        return 'Fizz'
+    else:
+        return str(i)
 
 def main():
     parse = argparse.ArgumentParser(description='Chainer model test')
@@ -62,13 +82,14 @@ def main():
     model = L.Classifier(MLP(binary_size, args.unit, 4))
     optimizer = chainer.optimizers.Adam()
     optimizer.setup(model)
+    
     chainer.serializers.load_npz(args.model, model)
     chainer.serializers.load_npz(args.optimizer, optimizer)
 
 
     for i in range(1, args.maxnum):
         pred = predict(model, i, binary_size)
-        print(pred)
+        print("")
     
     
 
