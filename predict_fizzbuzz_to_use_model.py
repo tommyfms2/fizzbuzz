@@ -31,7 +31,7 @@ class MLP(Chain):
     def predict(self, x):
         h1 = F.relu(self.l1(x))
         h2 = F.relu(self.l2(h1))
-        return self.l3(h2)
+        return F.softmax(self.l3(h2))
 
 def to_input_binary(n, binary_size):
     fmt = '{0:%sb}' % (binary_size)
@@ -52,13 +52,16 @@ def to_output_binary(n):
 def predict(model, num, binary_size):
     print(num, to_output_binary(num))
     test_data = to_input_binary( num, binary_size )
-    print(test_data)
     x = Variable(np.asarray([to_input_binary(num, binary_size)], np.float32))
-    x.data[0] = x.data[0]/255
     print(x.data[0])
     y = model.predictor(x)
     print(y.data[0])
     #return to_str(num, y.data[0])
+
+def predict_num(model, num, binary_size):
+    x = Variable(np.asarray([to_input_binary(num, binary_size)], np.float32))
+    y = model.predictor.predict(x)
+    return y.data[0]
 
 def to_str(i, pred):
     if pred == 0:
@@ -89,7 +92,8 @@ def main():
 
     for i in range(1, args.maxnum):
         pred = predict(model, i, binary_size)
-        print("")
+        pred = predict_num(model, i, binary_size)
+        print(pred)
     
     
 

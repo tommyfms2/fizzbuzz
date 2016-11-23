@@ -103,14 +103,14 @@ def main():
         i = i + 1
 
     # how come this isnt work?
-    nptrain_data = nptrain_data.astype(np.float32)/255
+    nptrain_data = nptrain_data.astype(np.float32)
     nptrain_label_data = nptrain_label_data.astype(np.int32)
     
-    nptest_data = nptest_data.astype(np.float32)/255
+    nptest_data = nptest_data.astype(np.float32)
     nptest_label_data = nptest_label_data.astype(np.int32)
-    
     train = tuple_dataset.TupleDataset(nptrain_data, nptrain_label_data)
     test  = tuple_dataset.TupleDataset(nptest_data, nptest_label_data)
+    print(train[0])
 
     train_iter = chainer.iterators.SerialIterator(train, args.batchsize)
     test_iter  = chainer.iterators.SerialIterator(test,  args.batchsize,
